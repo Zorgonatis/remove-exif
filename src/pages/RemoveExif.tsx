@@ -2,27 +2,27 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import JSZip from 'jszip';
 
 const RemoveExif = () => {
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
-  const [processedImageBlob, setProcessedImageBlob] = useState<Blob | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [processedImages, setProcessedImages] = useState<Map<string, Blob>>(new Map());
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setImageFile(event.target.files[0]);
+    if (event.target.files) {
+      setImageFiles(Array.from(event.target.files));
     }
   };
 
   const removeExifMetadata = async () => {
-    if (!imageFile) return;
+    const processedImagesMap = new Map<string, Blob>();
 
-    // Process the image to remove EXIF metadata
-    const blob = await processImage(imageFile);
-    const processedImageUrl = URL.createObjectURL(blob);
+    for (const file of imageFiles) {
+      const blob = await processImage(file);
+      processedImagesMap.set(file.name, blob);
+    }
 
-    setProcessedImageBlob(blob);
-    setProcessedImageUrl(processedImageUrl);
+    setProcessedImages(processedImagesMap);
   };
 
   const processImage = async (file: File): Promise<Blob> => {
@@ -52,13 +52,31 @@ const RemoveExif = () => {
     });
   };
 
-  const downloadImage = () => {
-    if (!processedImageBlob) return;
-
-    const url = URL.createObjectURL(processedImageBlob);
+  const downloadImage = (fileName: string, blob: Blob) => {
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'processed_image.jpg';
+    link.download = fileName.replace(/\.[^/.]+$/, '') + '_processed.jpg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const downloadAllImages = async () => {
+    const zip = new JSZip();
+
+    for (const [fileName, blob] of processedImages) {
+      const url = URL.createObjectURL(blob);
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      zip.file(fileName.replace(/\.[^/.]+$/, '') + '_processed.jpg', arrayBuffer);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'processed_images.zip';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -71,17 +89,28 @@ const RemoveExif = () => {
           <CardTitle>Remove EXIF Metadata</CardTitle>
         </CardHeader>
         <CardContent>
-          <Input type="file" accept="image/*" onChange={handleFileChange} />
-          {imageFile && (
+          <Input type="file" accept="image/*" multiple onChange={handleFileChange} />
+          {imageFiles.length > 0 && (
             <div className="mt-4">
               <Button onClick={removeExifMetadata}>Remove EXIF Metadata</Button>
             </div>
           )}
-          {processedImageUrl && (
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold">Processed Image:</h3>
-              <img src={processedImageUrl} alt="Processed" className="mt-2 max-w-full h-auto" />
-              <Button onClick={downloadImage} className="mt-2">Download</Button>
+          {processedImages.size > 0 && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from(processedImages).map(([fileName, blob]) => {
+                const imageUrl = URL.createObjectURL(blob);
+                return (
+                  <div key={fileName} className="text-center">
+                    <img src={imageUrl} alt={fileName} className="mt-2 max-w-full h-auto" />
+                    <Button onClick={() => downloadImage(fileName, blob)} className="mt-2">Download</Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {processedImages.size > 0 && (
+            <div className="mt-4 text-center">
+              <Button onClick={downloadAllImages}>Download All</Button>
             </div>
           )}
         </CardContent>
