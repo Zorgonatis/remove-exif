@@ -27,30 +27,31 @@ const RemoveExif = () => {
   const processImage = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       EXIF.getData(file, () => {
-        EXIF.removeAllTags(file, () => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const img = new Image();
-            img.src = reader.result as string;
-            img.onload = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext('2d');
-              if (ctx) {
-                ctx.drawImage(img, 0, 0);
-                canvas.toBlob((blob) => {
-                  if (blob) {
-                    resolve(blob);
-                  } else {
-                    reject(new Error('Failed to process image'));
-                  }
-                }, 'image/jpeg');
-              }
-            };
+        // Remove all tags
+        EXIF.removeTags(file);
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.src = reader.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error('Failed to process image'));
+                }
+              }, 'image/jpeg');
+            }
           };
-          reader.readAsDataURL(file);
-        });
+        };
+        reader.readAsDataURL(file);
       });
     });
   };
