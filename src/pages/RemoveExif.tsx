@@ -1,0 +1,83 @@
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import EXIF from 'exif-js';
+
+const RemoveExif = () => {
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setImageFile(event.target.files[0]);
+    }
+  };
+
+  const removeExifMetadata = async () => {
+    if (!imageFile) return;
+
+    // Process the image to remove EXIF metadata
+    const processedImageBlob = await processImage(imageFile);
+    const processedImageUrl = URL.createObjectURL(processedImageBlob);
+
+    setProcessedImageUrl(processedImageUrl);
+  };
+
+  const processImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      EXIF.getData(file, () => {
+        EXIF.removeAllTags(file, () => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const img = new Image();
+            img.src = reader.result as string;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((blob) => {
+                  if (blob) {
+                    resolve(blob);
+                  } else {
+                    reject(new Error('Failed to process image'));
+                  }
+                }, 'image/jpeg');
+              }
+            };
+          };
+          reader.readAsDataURL(file);
+        });
+      });
+    });
+  };
+
+  return (
+    <div className="container mx-auto p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Remove EXIF Metadata</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Input type="file" accept="image/*" onChange={handleFileChange} />
+          {imageFile && (
+            <div className="mt-4">
+              <Button onClick={removeExifMetadata}>Remove EXIF Metadata</Button>
+            </div>
+          )}
+          {processedImageUrl && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold">Processed Image:</h3>
+              <img src={processedImageUrl} alt="Processed" className="mt-2 max-w-full h-auto" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default RemoveExif;
