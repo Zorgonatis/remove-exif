@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import EXIF from 'exif-js';
 
 const RemoveExif = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -26,33 +25,28 @@ const RemoveExif = () => {
 
   const processImage = async (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
-      EXIF.getData(file, () => {
-        // Remove all tags
-        EXIF.removeTags(file);
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          const img = new Image();
-          img.src = reader.result as string;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              canvas.toBlob((blob) => {
-                if (blob) {
-                  resolve(blob);
-                } else {
-                  reject(new Error('Failed to process image'));
-                }
-              }, 'image/jpeg');
-            }
-          };
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to process image'));
+              }
+            }, 'image/jpeg');
+          }
         };
-        reader.readAsDataURL(file);
-      });
+      };
+      reader.readAsDataURL(file);
     });
   };
 
