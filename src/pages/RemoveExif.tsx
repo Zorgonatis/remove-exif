@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 const RemoveExif = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
+  const [processedImageBlob, setProcessedImageBlob] = useState<Blob | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -17,9 +18,10 @@ const RemoveExif = () => {
     if (!imageFile) return;
 
     // Process the image to remove EXIF metadata
-    const processedImageBlob = await processImage(imageFile);
-    const processedImageUrl = URL.createObjectURL(processedImageBlob);
+    const blob = await processImage(imageFile);
+    const processedImageUrl = URL.createObjectURL(blob);
 
+    setProcessedImageBlob(blob);
     setProcessedImageUrl(processedImageUrl);
   };
 
@@ -50,6 +52,18 @@ const RemoveExif = () => {
     });
   };
 
+  const downloadImage = () => {
+    if (!processedImageBlob) return;
+
+    const url = URL.createObjectURL(processedImageBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'processed_image.jpg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <Card>
@@ -67,6 +81,7 @@ const RemoveExif = () => {
             <div className="mt-4">
               <h3 className="text-lg font-semibold">Processed Image:</h3>
               <img src={processedImageUrl} alt="Processed" className="mt-2 max-w-full h-auto" />
+              <Button onClick={downloadImage} className="mt-2">Download</Button>
             </div>
           )}
         </CardContent>
